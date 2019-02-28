@@ -9,6 +9,7 @@ import gql from 'graphql-tag';
 import { stdout } from 'single-line-log';
 import SocketIO from 'socket.io-client';
 import IOStream from 'socket.io-stream';
+const { prompt } = require('enquirer');
 
 /**
  * Internal dependencies
@@ -19,15 +20,49 @@ import command from 'lib/cli/command';
 import { formatEnvironment } from 'lib/cli/format';
 import { trackEvent } from 'lib/tracker';
 
-const socket = SocketIO( 'http://localhost:4000/wp-cli' );
+//const socket = SocketIO( 'http://localhost:4000/wp-cli' );
 
 command( {
-	requiredArgs: 3,
+	appContext: true,
 } )
 	.argv( process.argv, async ( arg, opts ) => {
-		const stdoutStream = IOStream.createStream();
+		const appId = opts.app.id;
+		const appName = opts.app.name;
 
-		IOStream( socket ).emit( 'readStdout', stdoutStream );
+		console.log( `Entering WP-CLI mode for ${ appName } (${ appId })` );
 
-		stdoutStream.pipe( process.stdout );
+		while ( true ) {
+			const response = await prompt( {
+				type: 'input',
+				name: 'command',
+				message: '>',
+				validate: toValidate => {
+					if ( ! toValidate.startsWith( 'wp' ) ) {
+						return 'The command must start with `wp`';
+					}
+
+					return true;
+				},
+			} );
+
+			// Note: command would be sent to Parker here via `response.command`
+
+			const cmd = response.command;
+
+			if ( cmd === 'wp option get home' ) {
+				console.log( `https://${ appName }.com` );
+				continue;
+			} else if ( cmd === 'wp user get batmoo' ) {
+				console.log( '----------------------------' );
+				console.log( '|  id  |  username  |  name  |' );
+				console.log( '----------------------------' );
+				console.log( '|  123 |   batmoo   |   Mo   |' );
+				console.log( '----------------------------' );
+
+				continue;
+			}
+
+			console.log( 'Sorry, that command is not supported.' );
+			continue;
+		}
 	} );
