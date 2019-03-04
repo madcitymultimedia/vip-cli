@@ -36,6 +36,7 @@ command( {
 		const { id: envId, name: envName } = opts.env;
 
 		console.log( `Entering WP-CLI mode for ${ appName } (${ appId }) and ${ envName } (${ envId }) environment.` );
+		console.log( 'Enter q to exit' );
 
 		while ( true ) {
 			const response = await prompt( {
@@ -43,7 +44,7 @@ command( {
 				name: 'command',
 				message: '>',
 				validate: toValidate => {
-					if ( ! toValidate.startsWith( 'wp' ) ) {
+					if ( toValidate !== 'q' && ! toValidate.startsWith( 'wp' ) ) {
 						return 'The command must start with `wp`';
 					}
 
@@ -54,6 +55,10 @@ command( {
 			// Note: command would be sent to Parker here via `response.command`
 
 			const cmd = response.command;
+
+			if ( cmd === 'q' ) {
+				break;
+			}
 
 			if ( cmd === 'wp option get home' ) {
 				console.log( `https://${ appName }.com` );
@@ -71,4 +76,7 @@ command( {
 			console.log( 'Sorry, that command is not supported.' );
 			continue;
 		}
+
+		console.log( 'Thank you for using WP-CLI.' );
+		// Add survey here
 	} );
