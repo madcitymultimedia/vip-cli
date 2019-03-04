@@ -22,8 +22,13 @@ import { trackEvent } from 'lib/tracker';
 
 //const socket = SocketIO( 'http://localhost:4000/wp-cli' );
 
+const envInfo = `id,name,environments{
+	id,name,defaultDomain,branch,datacenter
+}`;
+
 command( {
 	appContext: true,
+	appQuery: envInfo,
 	childEnvContext: true,
 } )
 	.argv( process.argv, async ( arg, opts ) => {
