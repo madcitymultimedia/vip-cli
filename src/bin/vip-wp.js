@@ -24,6 +24,7 @@ import { trackEvent } from 'lib/tracker';
 
 command( {
 	appContext: true,
+	childEnvContext: true,
 } )
 	.argv( process.argv, async ( arg, opts ) => {
 		const appId = opts.app.id;
