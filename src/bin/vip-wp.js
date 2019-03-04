@@ -27,10 +27,10 @@ command( {
 	childEnvContext: true,
 } )
 	.argv( process.argv, async ( arg, opts ) => {
-		const appId = opts.app.id;
-		const appName = opts.app.name;
+		const { id: appId, name: appName } = opts.app;
+		const { id: envId, name: envName } = opts.env;
 
-		console.log( `Entering WP-CLI mode for ${ appName } (${ appId })` );
+		console.log( `Entering WP-CLI mode for ${ appName } (${ appId }) and ${ envName } (${ envId }) environment.` );
 
 		while ( true ) {
 			const response = await prompt( {
