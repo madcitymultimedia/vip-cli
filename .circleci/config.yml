@@ -1,4 +1,6 @@
 version: 2.1
+orbs:
+  windows: circleci/windows@2.4.0
 
 workflows:
   build:
@@ -21,6 +23,26 @@ workflows:
             - lint
             - flow
       - test:
+          version: current-stretch
+          requires:
+            - lint
+            - flow
+      - windowstest:
+          version: 8-stretch
+          requires:
+            - lint
+            - flow
+      - windowstest:
+          version: 10-stretch
+          requires:
+            - lint
+            - flow
+      - windowstest:
+          version: lts-stretch
+          requires:
+            - lint
+            - flow
+      - windowstest:
           version: current-stretch
           requires:
             - lint
@@ -67,3 +89,17 @@ jobs:
       - checkout
       - run: npm ci
       - run: npm run jest
+
+  windowstest:
+    executor: win/default
+    parameters:
+      version:
+        type: string
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+      - run: npm ci
+      - run: npm run jest
+    
