@@ -102,6 +102,15 @@ const checks = {
 		excerpt: '\'CREATE TABLE\' should be present (case-insensitive)',
 		recommendation: 'Check import settings to include CREATE TABLE statements',
 	},
+	autoIncrement: {
+		matcher: /^`?([a-z0-9_]*)`?(?=.*AUTO_INCREMENT,.*)(?=.*,)/i,
+		matchHandler: ( lineNumber, results ) => results [ 1 ],
+		outputFormatter: requiredCheckFormatter,
+		results: [],
+		message: 'AUTO_INCREMENT column',
+		excerpt: '\'CREATE TABLE\' statements should include a column with the AUTO_INCREMENT option',
+		recommendation: 'Check import settings to ensure CREATE TABLE statements contain a column with AUTO_INCREMENT',
+	},
 	siteHomeUrl: {
 		matcher: '\'(siteurl|home)\',\\s?\'(.*?)\'',
 		matchHandler: ( lineNumber, results ) => results [ 0 ],
@@ -182,6 +191,12 @@ command( {
 				errorSummary[ typeToSnakeCase ] = check.results.length;
 			}
 			errorSummary.problems_found = problemsFound;
+
+			if ( checks.createTable.results.length > checks.autoIncrement.results.length ) {
+				const missingAutoIncrement = checks.createTable.results.length - checks.autoIncrement.results.length;
+				problemsFound++;
+				console.error( chalk.red( 'Error:' ), `${ missingAutoIncrement } table(s) appear to be missing an AUTO_INCREMENT column` );
+			}
 
 			if ( problemsFound > 0 ) {
 				console.error( `Total of ${ chalk.red( problemsFound ) } errors found` );
