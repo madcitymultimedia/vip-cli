@@ -119,14 +119,14 @@ const cancelCommand = async guid => {
 	return api
 		.mutate( {
 		// $FlowFixMe: gql template is not supported by flow
-			mutation: gql`	
-			mutation cancelWPCLICommand($input: CancelWPCLICommandInput ){	
-				cancelWPCLICommand( input: $input ) {	
-					command {	
-						id	
-					}	
-				}	
-			}	
+			mutation: gql`
+			mutation cancelWPCLICommand($input: CancelWPCLICommandInput ){
+				cancelWPCLICommand( input: $input ) {
+					command {
+						id
+					}
+				}
+			}
 		`,
 			variables: {
 				input: {
@@ -304,40 +304,48 @@ commandWrapper( {
 			const startsWithWp = line.startsWith( 'wp ' );
 			const empty = 0 === line.length;
 			const userCmdCancelled = line === cancelCommandChar;
+			const isLogCommand = line.startsWith( 'log' );
 
-			if ( ( empty || ! startsWithWp ) && ! userCmdCancelled ) {
+			console.log( line );
+			if ( ( empty || ! startsWithWp ) && ! userCmdCancelled && ! isLogCommand ) {
 				console.log( chalk.red( 'Error:' ), 'invalid command, please pass a valid WP CLI command.' );
 				subShellRl.prompt();
 				return;
 			}
 
 			subShellRl.pause();
+			let cliCommand, inputToken;
+			if ( ! isLogCommand ) {
+				let result;
+				try {
+					result = await getTokenForCommand( appId, envId, line.replace( 'wp ', '' ) );
+				} catch ( e ) {
+					// If this was a GraphQL error, print that to the message to the line
+					if ( e.graphQLErrors ) {
+						e.graphQLErrors.forEach( error => {
+							console.log( chalk.red( 'Error:' ), error.message );
+						} );
+					} else {
+						// Else, other type of error, just dump it
+						rollbar.error( e );
+						console.log( e );
+					}
 
-			let result;
-			try {
-				result = await getTokenForCommand( appId, envId, line.replace( 'wp ', '' ) );
-			} catch ( e ) {
-				// If this was a GraphQL error, print that to the message to the line
-				if ( e.graphQLErrors ) {
-					e.graphQLErrors.forEach( error => {
-						console.log( chalk.red( 'Error:' ), error.message );
-					} );
-				} else {
-					// Else, other type of error, just dump it
-					rollbar.error( e );
-					console.log( e );
+					if ( ! isSubShell ) {
+						subShellRl.close();
+						process.exit( 1 );
+					}
+
+					subShellRl.prompt();
+					return;
 				}
 
-				if ( ! isSubShell ) {
-					subShellRl.close();
-					process.exit( 1 );
-				}
-
-				subShellRl.prompt();
-				return;
+				cliCommand = result.data.triggerWPCLICommandOnAppEnvironment.command;
+				inputToken = result.data.triggerWPCLICommandOnAppEnvironment.inputToken;
+			} else {
+				cliCommand = { guid: 'origin-command-guid' };
+				inputToken = 'super-secret-command-token';
 			}
-
-			const { data: { triggerWPCLICommandOnAppEnvironment: { command: cliCommand, inputToken } } } = result;
 
 			if ( line.includes( "'" ) ) {
 				rollbar.info( 'WP-CLI Command containing single quotes', { custom: { code: 'wp-cli-single-quotes', commandGuid: cliCommand.guid } } );
@@ -424,7 +432,11 @@ commandWrapper( {
 
 		if ( ! isSubShell ) {
 			mutableStdout.muted = true;
-			subShellRl.write( `wp ${ cmd }\n` );
+			if ( cmd === 'log' ) {
+				subShellRl.write( 'vip-go-retrieve-remote-logs\n' );
+			} else {
+				subShellRl.write( `wp ${ cmd }\n` );
+			}
 			mutableStdout.muted = false;
 			return;
 		}
