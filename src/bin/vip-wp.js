@@ -304,7 +304,7 @@ commandWrapper( {
 			const startsWithWp = line.startsWith( 'wp ' );
 			const empty = 0 === line.length;
 			const userCmdCancelled = line === cancelCommandChar;
-			const isLogCommand = line.startsWith( 'log' );
+			const isLogCommand = line.startsWith( 'vip-go-retrieve-remote-logs' );
 
 			console.log( line );
 			if ( ( empty || ! startsWithWp ) && ! userCmdCancelled && ! isLogCommand ) {
