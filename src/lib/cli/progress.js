@@ -4,7 +4,8 @@
 /**
  * External dependencies
  */
-import { stdout as singleLogLine } from 'single-line-log';
+import { PassThrough } from 'stream';
+import singleLogLine from 'single-line-log';
 
 /**
  * Internal dependencies
@@ -20,6 +21,9 @@ export class ProgressTracker {
 	hasPrinted: boolean;
 	initialized: boolean;
 	printInterval: IntervalID;
+
+	outStream: stream$Writable;
+	singleLogLine: Function;
 
 	// Track the state of each step
 	stepsFromCaller: Map<string, Object>;
@@ -41,6 +45,8 @@ export class ProgressTracker {
 		this.stepsFromServer = new Map();
 		this.prefix = '';
 		this.suffix = '';
+		this.outStream = new PassThrough().pipe( process.stdout );
+		this.singleLogLine = singleLogLine( this.outStream );
 	}
 
 	getSteps(): Map<string, Object> {
@@ -141,7 +147,7 @@ export class ProgressTracker {
 	print( { clearAfter = false }: { clearAfter?: boolean } = {} ) {
 		if ( ! this.hasPrinted ) {
 			this.hasPrinted = true;
-			singleLogLine.clear();
+			this.singleLogLine.clear();
 		}
 		const stepValues = [ ...this.getSteps().values() ];
 		const logs = stepValues.reduce( ( accumulator, { name, status } ) => {
@@ -150,11 +156,11 @@ export class ProgressTracker {
 		}, '' );
 
 		// Output the logs
-		singleLogLine( `${ this.prefix || '' }${ logs }${ this.suffix || '' }` );
+		this.singleLogLine( `${ this.prefix || '' }${ logs }${ this.suffix || '' }` );
 
 		if ( clearAfter ) {
 			// Break out of the "Single log line" buffer
-			singleLogLine.clear();
+			this.singleLogLine.clear();
 		}
 	}
 }
