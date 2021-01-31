@@ -13,7 +13,7 @@ import gql from 'graphql-tag';
  */
 import API from 'lib/api';
 import { trackEventWithEnv } from 'lib/tracker';
-import * as exit from 'lib/cli/exit';
+import { exitWithError } from 'lib/cli/exit';
 
 export async function isMultiSiteInSiteMeta( appId: number, envId: number ): Promise<boolean> {
 	const track = trackEventWithEnv.bind( null, appId, envId );
@@ -46,7 +46,7 @@ export async function isMultiSiteInSiteMeta( appId: number, envId: number ): Pro
 			error_type: 'GraphQL-MultiSite-Check-failed',
 			gql_err: GraphQlError,
 		} );
-		exit.withError( `StartImport call failed: ${ GraphQlError }` );
+		exitWithError( `StartImport call failed: ${ GraphQlError }` );
 	}
 
 	if ( Array.isArray( res?.data?.app?.environments ) ) {

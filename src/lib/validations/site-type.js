@@ -13,7 +13,7 @@
 import { trackEventWithEnv } from 'lib/tracker';
 import { sqlDumpLineIsMultiSite } from 'lib/validations/is-multi-site-sql-dump';
 import { isMultiSiteInSiteMeta } from 'lib/validations/is-multi-site';
-import * as exit from 'lib/cli/exit';
+import { exitWithError } from 'lib/cli/exit';
 import type { PostLineExecutionProcessingParams } from 'lib/validations/line-by-line';
 import debugLib from 'debug';
 
@@ -37,14 +37,22 @@ export const siteTypeValidations = {
 
 		// if site is a multisite but import sql is not
 		if ( isMultiSite && ! isMultiSiteSqlDump ) {
-			await track( 'import_sql_command_error', { error_type: 'multisite-but-not-multisite-sql-dump' } );
-			exit.withError( 'You have provided a non-multisite SQL dump file for import into a multisite.' );
+			await track( 'import_sql_command_error', {
+				error_type: 'multisite-but-not-multisite-sql-dump',
+			} );
+			exitWithError(
+				'You have provided a non-multisite SQL dump file for import into a multisite.'
+			);
 		}
 
 		// if site is a single site but import sql is for a multi site
 		if ( ! isMultiSite && isMultiSiteSqlDump ) {
-			await track( 'import_sql_command_error', { error_type: 'not-multisite-with-multisite-sql-dump' } );
-			exit.withError( 'You have provided a multisite SQL dump file for import into a single site (non-multisite).' );
+			await track( 'import_sql_command_error', {
+				error_type: 'not-multisite-with-multisite-sql-dump',
+			} );
+			exitWithError(
+				'You have provided a multisite SQL dump file for import into a single site (non-multisite).'
+			);
 		}
 	},
 };

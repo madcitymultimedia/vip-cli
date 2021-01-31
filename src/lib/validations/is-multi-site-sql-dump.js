@@ -11,7 +11,7 @@
  * Internal dependencies
  */
 import { getReadInterface } from 'lib/validations/line-by-line';
-import * as exit from 'lib/cli/exit';
+import { exitWithError } from 'lib/cli/exit';
 
 const SQL_DUMP_CREATE_TABLE_IS_MULTISITE_REGEX = /^CREATE TABLE `?(wp_\d_[a-z0-9_]*)/i;
 
@@ -34,7 +34,7 @@ export function isMultiSiteDumpFile( fileName: string ): Promise<boolean> {
 		} );
 
 		readInterface.on( 'error', () => {
-			exit.withError(
+			exitWithError(
 				'An error was encountered while reading your SQL dump file.  Please verify the file contents.'
 			);
 		} );

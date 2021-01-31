@@ -28,7 +28,7 @@ import { staticSqlValidations } from 'lib/validations/sql';
 import { siteTypeValidations } from 'lib/validations/site-type';
 import { searchAndReplace } from 'lib/search-and-replace';
 import API from 'lib/api';
-import * as exit from 'lib/cli/exit';
+import { exitWithError } from 'lib/cli/exit';
 import { fileLineValidations } from 'lib/validations/line-by-line';
 import { formatEnvironment, getGlyphForStatus } from 'lib/cli/format';
 import { ProgressTracker } from 'lib/cli/progress';
@@ -82,14 +82,14 @@ const gates = async ( app, env, fileName ) => {
 
 	if ( ! currentUserCanImportForApp( app ) ) {
 		await track( 'import_sql_command_error', { error_type: 'unauthorized' } );
-		exit.withError(
+		exitWithError(
 			'The currently authenticated account does not have permission to perform a SQL import.'
 		);
 	}
 
 	if ( ! isSupportedApp( app ) ) {
 		await track( 'import_sql_command_error', { error_type: 'unsupported-app' } );
-		exit.withError(
+		exitWithError(
 			'The type of application you specified does not currently support SQL imports.'
 		);
 	}
@@ -98,24 +98,24 @@ const gates = async ( app, env, fileName ) => {
 		await checkFileAccess( fileName );
 	} catch ( e ) {
 		await track( 'import_sql_command_error', { error_type: 'sqlfile-unreadable' } );
-		exit.withError( `File '${ fileName }' does not exist or is not readable.` );
+		exitWithError( `File '${ fileName }' does not exist or is not readable.` );
 	}
 
 	if ( ! ( await isFile( fileName ) ) ) {
 		await track( 'import_sql_command_error', { error_type: 'sqlfile-notfile' } );
-		exit.withError( `Path '${ fileName }' is not a file.` );
+		exitWithError( `Path '${ fileName }' is not a file.` );
 	}
 
 	const fileSize = await getFileSize( fileName );
 
 	if ( ! fileSize ) {
 		await track( 'import_sql_command_error', { error_type: 'sqlfile-empty' } );
-		exit.withError( `File '${ fileName }' is empty.` );
+		exitWithError( `File '${ fileName }' is empty.` );
 	}
 
 	if ( fileSize > SQL_IMPORT_FILE_SIZE_LIMIT ) {
 		await track( 'import_sql_command_error', { error_type: 'sqlfile-toobig' } );
-		exit.withError(
+		exitWithError(
 			`The sql import file size (${ fileSize } bytes) exceeds the limit (${ SQL_IMPORT_FILE_SIZE_LIMIT } bytes).` +
 				'Please split it into multiple files or contact support for assistance.'
 		);
@@ -127,12 +127,12 @@ const gates = async ( app, env, fileName ) => {
 
 	if ( dbOperationInProgress ) {
 		await track( 'import_sql_command_error', { errorType: 'existing-dbop' } );
-		exit.withError( 'There is already a database operation in progress. Please try again later.' );
+		exitWithError( 'There is already a database operation in progress. Please try again later.' );
 	}
 
 	if ( importInProgress ) {
 		await track( 'import_sql_command_error', { errorType: 'existing-import' } );
-		exit.withError(
+		exitWithError(
 			'There is already an import in progress. You can view the status with the `vip import sql status` command.'
 		);
 	}
@@ -301,7 +301,7 @@ Processing the SQL import for your environment...
 			await track( 'import_sql_command_error', { error_type: 'upload_failed', e } );
 			progressTracker.stepFailed( 'upload' );
 			progressTracker.stopPrinting();
-			exit.withError( e );
+			exitWithError( e );
 		}
 
 		// Start the import
@@ -321,7 +321,7 @@ Processing the SQL import for your environment...
 			} );
 			progressTracker.stepFailed( 'queue_import' );
 			progressTracker.stopPrinting();
-			exit.withError( `StartImport call failed: ${ gqlErr }` );
+			exitWithError( `StartImport call failed: ${ gqlErr }` );
 		}
 
 		progressTracker.stepSuccess( 'queue_import' );

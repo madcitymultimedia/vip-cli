@@ -20,7 +20,7 @@ import { trackEvent } from 'lib/tracker';
 import { confirm } from 'lib/cli/prompt';
 import { progress, setStatusForCurrentAction } from 'lib/cli/progress';
 import { getFileSize } from 'lib/client-file-uploader';
-import * as exit from 'lib/cli/exit';
+import { exitWithError } from 'lib/cli/exit';
 
 const debug = debugLib( '@automattic/vip:lib:search-and-replace' );
 
@@ -180,7 +180,7 @@ export const searchAndReplace = async (
 	try {
 		replacedStream = await replace( readStream, replacements, binary );
 	} catch ( replaceError ) {
-		exit.withError( replaceError );
+		exitWithError( replaceError );
 	}
 
 	const result = await new Promise( ( resolve, reject ) => {

@@ -9,7 +9,7 @@
  * External dependencies
  */
 import { trackEventWithEnv } from 'lib/tracker';
-import * as exit from 'lib/cli/exit';
+import { exitWithError } from 'lib/cli/exit';
 
 /**
  * Internal dependencies
@@ -45,7 +45,7 @@ command( {
 
 	if ( ! isSupportedApp( app ) ) {
 		await track( 'import_sql_command_error', { errorType: 'unsupported-app' } );
-		exit.withError(
+		exitWithError(
 			'The type of application you specified does not currently support SQL imports.'
 		);
 	}
