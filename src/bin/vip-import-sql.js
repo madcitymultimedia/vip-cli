@@ -223,21 +223,35 @@ command( {
 			formatSearchReplaceValues( searchReplace, output );
 		}
 
-		// NO `console.log` after this point! It will break the progress printing.
+		/**
+		 * NO `console.log` after this point!
+		 * Yes, even inside called functions.
+		 * It will break the progress printing.
+		 */
+		const progressTracker = new ProgressTracker( SQL_IMPORT_PREFLIGHT_PROGRESS_STEPS );
 
 		let fileNameToUpload = fileName;
 
-		const progressTracker = new ProgressTracker( SQL_IMPORT_PREFLIGHT_PROGRESS_STEPS );
-		const setProgressTrackerPrefixAndSuffix = () => {
+		let status = 'running';
+
+		function setProgressTrackerPrefixAndSuffix() {
 			progressTracker.prefix = `
 =============================================================
 Processing the SQL import for your environment...
 `;
-			progressTracker.suffix = `\n${ getGlyphForStatus(
-				'running',
-				progressTracker.runningSprite
-			) } Loading remaining steps`;
-		};
+			progressTracker.suffix = `\n${ getGlyphForStatus( status, progressTracker.runningSprite ) } ${
+				status === 'running' ? 'Loading remaining steps' : ''
+			}`; // todo maybe use progress tracker status
+		}
+
+		function failWithError( error ) {
+			status = 'failed';
+			setProgressTrackerPrefixAndSuffix();
+			progressTracker.stopPrinting();
+			progressTracker.print( { clearAfter: true } );
+			exit.withError( error );
+		}
+
 		progressTracker.startPrinting( setProgressTrackerPrefixAndSuffix );
 
 		// Run Search and Replace if the --search-replace flag was provided
@@ -251,11 +265,8 @@ Processing the SQL import for your environment...
 			} );
 
 			if ( typeof outputFileName !== 'string' ) {
-				// This should not really happen if `searchAndReplace` is functioning properly
-				progressTracker.stopPrinting();
-				throw new Error(
-					'Unable to determine location of the intermediate search & replace file.'
-				);
+				progressTracker.stepFailed( 'replace' );
+				failWithError( 'Unable to determine location of the intermediate search & replace file.' );
 			}
 
 			fileNameToUpload = outputFileName;
@@ -265,11 +276,15 @@ Processing the SQL import for your environment...
 		}
 
 		// SQL file validations
-		const validations = [];
-		validations.push( staticSqlValidations );
-		validations.push( siteTypeValidations );
+		const validations = [ staticSqlValidations, siteTypeValidations ];
 
-		await fileLineValidations( appId, envId, fileNameToUpload, validations );
+		try {
+			await fileLineValidations( appId, envId, fileNameToUpload, validations );
+		} catch ( error ) {
+			debug( '*******FAILED VALIDATION*******' );
+			progressTracker.stepFailed( 'validate' );
+			failWithError( `The SQL file did not pass the validation checks: ${ error }` );
+		}
 
 		progressTracker.stepSuccess( 'validate' );
 
@@ -304,11 +319,10 @@ Processing the SQL import for your environment...
 			debug( 'Upload complete. Initiating the import.' );
 			progressTracker.stepSuccess( 'upload' );
 			await track( 'import_sql_upload_complete' );
-		} catch ( e ) {
-			await track( 'import_sql_command_error', { error_type: 'upload_failed', e } );
+		} catch ( error ) {
+			await track( 'import_sql_command_error', { error_type: 'upload_failed', error } );
 			progressTracker.stepFailed( 'upload' );
-			progressTracker.stopPrinting();
-			exit.withError( e );
+			failWithError( error );
 		}
 
 		// Start the import
