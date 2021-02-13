@@ -181,7 +181,7 @@ export const searchAndReplace = async (
 	const result = await new Promise( ( resolve, reject ) => {
 		replacedStream
 			.pipe( writeStream )
-			.on( 'finish', () => {
+			.on( 'close', () => {
 				resolve( {
 					inputFileName: fileName,
 					outputFileName,
