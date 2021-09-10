@@ -36,7 +36,7 @@
     "postinstall": "node ./helpers/check-version.js",
     "build": "npm run prepareConfig:local && babel src -d dist",
     "build:watch": "babel src -d dist --watch",
-    "flow": "flow",
+    "check:types": "tsc --noEmit",
     "jest": "jest",
     "lint": "eslint index.js src __tests__",
     "prepareConfig:local": "node ./helpers/prepare-config.js local",
