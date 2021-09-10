@@ -1,126 +1,119 @@
-// @flow
-
 /**
  * External dependencies
  */
-import jwtDecode from 'jwt-decode';
-import { v4 as uuid } from 'uuid';
+import jwtDecode from "jwt-decode";
+import { v4 as uuid } from "uuid";
 
 /**
  * Internal dependencies
  */
-import keychain from './keychain';
-
-import {
-	API_HOST,
-	PRODUCTION_API_HOST,
-} from './api';
-
+import keychain from "./keychain";
+import { API_HOST, PRODUCTION_API_HOST } from "./api";
 // Config
 export const SERVICE = 'vip-go-cli';
 export default class Token {
-	raw: string;
-	id: number;
-	iat: Date;
-	exp: Date;
+  raw: string;
+  id: number;
+  iat: Date;
+  exp: Date;
 
-	constructor( token: string ): void {
-		if ( ! token ) {
-			return;
-		}
+  constructor(token: string): void {
+    if (!token) {
+      return;
+    }
 
-		token = token.trim();
-		if ( ! token.length ) {
-			return;
-		}
+    token = token.trim();
 
-		const t = jwtDecode( token );
-		this.raw = token;
+    if (!token.length) {
+      return;
+    }
 
-		if ( t.id ) {
-			this.id = t.id;
-		}
+    const t = jwtDecode(token);
+    this.raw = token;
 
-		if ( t.iat ) {
-			this.iat = new Date( t.iat * 1000 );
-		}
+    if (t.id) {
+      this.id = t.id;
+    }
 
-		if ( t.exp ) {
-			this.exp = new Date( t.exp * 1000 );
-		}
-	}
+    if (t.iat) {
+      this.iat = new Date(t.iat * 1000);
+    }
 
-	valid(): boolean {
-		if ( ! this.id ) {
-			return false;
-		}
+    if (t.exp) {
+      this.exp = new Date(t.exp * 1000);
+    }
+  }
 
-		if ( ! this.iat ) {
-			return false;
-		}
+  valid(): boolean {
+    if (!this.id) {
+      return false;
+    }
 
-		const now = new Date();
-		if ( ! this.exp ) {
-			return now > this.iat;
-		}
+    if (!this.iat) {
+      return false;
+    }
 
-		return now > this.iat && now < this.exp;
-	}
+    const now = new Date();
 
-	expired(): boolean {
-		if ( ! this.exp ) {
-			return false;
-		}
+    if (!this.exp) {
+      return now > this.iat;
+    }
 
-		const now = new Date();
-		return now > this.exp;
-	}
+    return now > this.iat && now < this.exp;
+  }
 
-	static async uuid(): string {
-		const service = Token.getServiceName( '-uuid' );
+  expired(): boolean {
+    if (!this.exp) {
+      return false;
+    }
 
-		let _uuid = await keychain.getPassword( service );
-		if ( ! _uuid ) {
-			_uuid = uuid();
-			await keychain.setPassword( service, _uuid );
-		}
+    const now = new Date();
+    return now > this.exp;
+  }
 
-		return _uuid;
-	}
+  static async uuid(): string {
+    const service = Token.getServiceName('-uuid');
 
-	static async setUuid( _uuid: string ) {
-		const service = Token.getServiceName( '-uuid' );
-		await keychain.setPassword( service, _uuid );
-	}
+    let _uuid = await keychain.getPassword(service);
 
-	static async set( token: string ): Promise<boolean> {
-		const service = Token.getServiceName();
+    if (!_uuid) {
+      _uuid = uuid();
+      await keychain.setPassword(service, _uuid);
+    }
 
-		return keychain.setPassword( service, token );
-	}
+    return _uuid;
+  }
 
-	static async get(): Promise<Token> {
-		const service = Token.getServiceName();
+  static async setUuid(_uuid: string) {
+    const service = Token.getServiceName('-uuid');
+    await keychain.setPassword(service, _uuid);
+  }
 
-		const token = await keychain.getPassword( service );
-		return new Token( token );
-	}
+  static async set(token: string): Promise<boolean> {
+    const service = Token.getServiceName();
+    return keychain.setPassword(service, token);
+  }
 
-	static async purge(): Promise<boolean> {
-		const service = Token.getServiceName();
+  static async get(): Promise<Token> {
+    const service = Token.getServiceName();
+    const token = await keychain.getPassword(service);
+    return new Token(token);
+  }
 
-		return keychain.deletePassword( service );
-	}
+  static async purge(): Promise<boolean> {
+    const service = Token.getServiceName();
+    return keychain.deletePassword(service);
+  }
 
-	static getServiceName( modifier: string = '' ): string {
-		let service = SERVICE;
+  static getServiceName(modifier: string = ''): string {
+    let service = SERVICE;
 
-		if ( PRODUCTION_API_HOST !== API_HOST ) {
-			const sanitized = API_HOST.replace( /[^a-z0-9]/gi, '-' );
+    if (PRODUCTION_API_HOST !== API_HOST) {
+      const sanitized = API_HOST.replace(/[^a-z0-9]/gi, '-');
+      service = `${SERVICE}:${sanitized}`;
+    }
 
-			service = `${ SERVICE }:${ sanitized }`;
-		}
+    return `${service}${modifier}`;
+  }
 
-		return `${ service }${ modifier }`;
-	}
 }
