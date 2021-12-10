@@ -98,6 +98,7 @@
     "flow-bin": "0.150.0",
     "jest": "27.2.1",
     "nock": "13.0.11",
+    "np": "^7.6.0",
     "prettier": "npm:wp-prettier@2.0.5",
     "publish-please": "5.5.2"
   },
