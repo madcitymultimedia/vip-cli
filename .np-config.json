@@ -1,7 +1,6 @@
 {
 	"yarn": false,
 	"branch": "master",
-	"contents": "dist",
 	"tests": true,
 	"tag": "latest",
 	"releaseDraft": true,
