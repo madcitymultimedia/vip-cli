@@ -1,4 +1,5 @@
 {
+	"anyBranch": true,
 	"yarn": false,
 	"branch": "master",
 	"tests": true,
