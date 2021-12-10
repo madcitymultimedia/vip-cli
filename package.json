@@ -52,7 +52,7 @@
     "prepareConfig:publish": "node ./helpers/prepare-config.js publish",
     "publish-please": "publish-please",
     "prepublishOnly": "publish-please guard",
-    "release": "np"
+    "release": "np --preview"
   },
   "repository": {
     "type": "git",
