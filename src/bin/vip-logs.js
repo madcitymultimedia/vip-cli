@@ -60,8 +60,6 @@ export async function getLogs( arg: string[], opt ): Promise<void> {
 }
 
 export async function followLogs( opt ): Promise<void> {
-	let interval = 30;
-
 	let after = null;
 
 	while ( true ) {
@@ -79,7 +77,9 @@ export async function followLogs( opt ): Promise<void> {
 
 		after = logs.nextCursor;
 
-		await new Promise( ( resolve ) => { setTimeout( resolve, interval * 1000 ); } );
+		const delay = ( logs.pollingDelaySeconds || 10 ) * 1000;
+
+		await new Promise( resolve => setTimeout( resolve, delay ) );
 	}
 }
 
