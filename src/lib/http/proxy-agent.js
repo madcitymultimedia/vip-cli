@@ -19,7 +19,7 @@ export default function createProxyAgent() {
 		return new SocksProxyAgent( socksProxy );
 	}
 
-	const httpProxy = process.env.HTTP_PROXY;
+	const httpProxy = process.env.HTTP_PROXY || process.env.HTTPS_PROXY;
 	if ( httpProxy ) {
 		debug( `Enabling HTTPS proxy support using config: ${ httpProxy }` );
 
