@@ -14,39 +14,39 @@ import gql from 'graphql-tag';
 import API from 'lib/api';
 
 const mutation = gql`
-  mutation DebugPageCacheMutation(
+	mutation DebugPageCacheMutation(
 		$appId: Int!
 		$envId: Int!
 		$url: String!
 	) {
-    debugPageCache( input: {
+		debugPageCache( input: {
 			appId: $appId
 			environmentId: $envId
 			url: $url
 		} ) {
-      success
-      insights {
-        category
-        name
-        html
-        type
-      }
-      edge {
-        statusCode
-        headers {
-          name
-          value
-        }
-      }
-      origin {
-        statusCode
-        headers {
-          name
-          value
-        }
-      }
-    }
-  }
+			success
+			insights {
+				category
+				name
+				html
+				type
+			}
+			edge {
+				statusCode
+				headers {
+					name
+					value
+				}
+			}
+			origin {
+				statusCode
+				headers {
+					name
+					value
+				}
+			}
+		}
+	}
 `;
 
 // The subquery for environments lets users choose any environment, including production.
