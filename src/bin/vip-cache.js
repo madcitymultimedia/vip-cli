@@ -18,4 +18,5 @@ command( {
 	requiredArgs: 2,
 } )
 	.command( 'purge-url', 'Purge page cache' )
+	.command( 'debug-url', 'Debug page cache' )
 	.argv( process.argv );
