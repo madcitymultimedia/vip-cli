@@ -15,12 +15,16 @@ import { stdout as log } from 'single-line-log';
 import * as exit from 'lib/cli/exit';
 import { trackEvent } from 'lib/tracker';
 import { getReadInterface } from 'lib/validations/line-by-line';
+import { getMultilineStatement } from 'lib/validations/utils';
 // eslint-disable-next-line no-duplicate-imports
 import type { PostLineExecutionProcessingParams } from 'lib/validations/line-by-line';
 
 let problemsFound = 0;
 let lineNum = 1;
 const tableNames = [];
+const ALTER_TABLE_REGEX = /^ALTER TABLE `?([a-z0-9_]*)/i;
+let alterTableStatements;
+const getAlterTableStatements = getMultilineStatement( ALTER_TABLE_REGEX );
 
 function formatError( message ) {
 	return `${ chalk.red( 'SQL Error:' ) } ${ message }`;
@@ -195,6 +199,27 @@ function checkTablePrefixes( results: CheckResult[], errors, infos ) {
 	}
 }
 
+/**
+ * Finds tables that are defining a primary key in the ALTER TABLE statement
+ *
+ * @returns {Set} a list of table names
+ */
+function checkPrimaryKeys() {
+	const primaryKeyInAlterTableSet = new Set();
+	for ( const statement of alterTableStatements ) {
+		const statementStr = statement.join( '' );
+		if ( statementStr.includes( 'ADD PRIMARY KEY' ) ) {
+			const tableName = statementStr.match( ALTER_TABLE_REGEX );
+			if ( tableName ) {
+				primaryKeyInAlterTableSet.add( tableName[ 1 ] );
+			}
+			problemsFound++;
+		}
+	}
+
+	return primaryKeyInAlterTableSet;
+}
+
 const checks: Checks = {
 	binaryLogging: {
 		matcher: /SET @@SESSION.sql_log_bin/i,
@@ -364,6 +389,18 @@ const postValidation = async ( options: ValidationOptions ) => {
 		formattedErrors = formattedErrors.concat( errorObject );
 	}
 
+	// error if any tables have their primary key set in ALTER TABLE statements
+	const primaryKeyInAlterTableSet = checkPrimaryKeys();
+	if ( primaryKeyInAlterTableSet.size ) {
+		const errorObject = {
+			error: formatError( `Primary keys are defined too late for these tables: ${ Array.from( primaryKeyInAlterTableSet ).join( ',' ) }` ),
+			recommendation: formatRecommendation( 'Define primary keys in CREATE TABLE statements' ),
+		};
+		formattedErrors = formattedErrors.concat( errorObject );
+		// send a count of this error type to tracks / pendo
+		errorSummary.primaryKey = primaryKeyInAlterTableSet.length;
+	}
+
 	if ( formattedWarnings.length ) {
 		const warningOutput = [];
 		formattedWarnings.forEach( warning => {
@@ -440,6 +477,7 @@ const perLineValidations = ( line: string, options: ValidationOptions = DEFAULT_
 	}
 
 	checkForTableName( line );
+	alterTableStatements = getAlterTableStatements( line );
 
 	const checkKeys = Object.keys( checks ).filter( checkItem => ! options.skipChecks.includes( checkItem ) );
 	for ( const checkKey of checkKeys ) {

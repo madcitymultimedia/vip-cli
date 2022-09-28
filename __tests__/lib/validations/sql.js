@@ -109,4 +109,19 @@ describe( 'lib/validations/sql', () => {
 			expect( output ).toContain( 'Use \'--search-replace="super-empoyees.com,test.domain"\' switch to replace the domain' );
 		} );
 	} );
+	describe( 'it fails when the SQL has primary keys defined in ALTER TABLE statements', () => {
+		beforeAll( async () => {
+			try {
+				output = '';
+				const primaryKeyInAlterTableDumpPath = path.join( process.cwd(), '__fixtures__', 'validations', 'bad-sql-primary-key-in-alter-table.sql' );
+				await validate( primaryKeyInAlterTableDumpPath );
+			} catch ( err ) {
+				debug( 'Error:', err.toString() );
+			}
+			debug( 'output', output );
+		} );
+		it( 'tables altered to add primary keys are found', () => {
+			expect( output ).toContain( 'Primary keys are defined too late for these tables: wp_users,wp_usermeta' );
+		} );
+	} );
 } );
