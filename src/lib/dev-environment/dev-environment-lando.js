@@ -112,6 +112,14 @@ function getLandoConfig() {
 		proxyName: 'vip-dev-env-proxy',
 		userConfRoot: getLandoUserConfigurationRoot(),
 		home: '',
+		proxyHttpPort: 8001,
+		proxyHttpsPort: 4431,
+		proxyHttpFallbacks: [
+			8000,
+			8080,
+		],
+		proxyHttpsFallbacks:
+			[ '444', '4433' ]
 	};
 }
 
