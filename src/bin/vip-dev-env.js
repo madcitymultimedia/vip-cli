@@ -26,6 +26,18 @@ command( {
 	.command( 'list', 'Provides basic info about all local dev environments' )
 	.command( 'exec', 'Execute a WP-CLI command in local dev environment' )
 	.command( 'import', 'Import data into a local WordPress environment' )
-	.command( 'shell', 'Spawns a shell in a dev environment' )
+	.command( 'shell', 'Spawns a shell in a dev environment', function( name, sub, options ) {
+		this.details = {
+			options: [],
+			commands: [],
+			examples: [],
+		};
+		process.argv = [ process.argv[ 0 ], process.argv[ 1 ] + '-' + name ].concat( process.argv.slice( 3 ) );
+		command( { wildcard: true, skipAddOptions: true } )
+			.option( 'slug', 'Custom name of the dev environment' )
+			.option( 'root', 'Spawn a root shell' )
+			.option( 'service', 'Spawn a shell in a specific service (php if omitted)' )
+			.argv( process.argv, async ( a, o ) => console.log( 'xxx', a, o ) );
+	} )
 	.command( 'logs', 'View logs from a local WordPress environment' )
 	.argv( process.argv );

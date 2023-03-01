@@ -525,28 +525,31 @@ export default function( opts: any ): args {
 		requireConfirm: false,
 		requiredArgs: 0,
 		wildcardCommand: false,
+		skipAddOptions: false,
 	}, opts );
 
-	if ( _opts.appContext || _opts.requireConfirm ) {
-		args.option( 'app', 'Specify the app' );
-	}
+	if ( _opts.skipAddOptions ) {
+		if ( _opts.appContext || _opts.requireConfirm ) {
+			args.option( 'app', 'Specify the app' );
+		}
 
-	if ( _opts.envContext || _opts.childEnvContext ) {
-		args.option( 'env', 'Specify the environment' );
-	}
+		if ( _opts.envContext || _opts.childEnvContext ) {
+			args.option( 'env', 'Specify the environment' );
+		}
 
-	if ( _opts.requireConfirm ) {
-		args.option( 'force', 'Skip confirmation', false );
-	}
+		if ( _opts.requireConfirm ) {
+			args.option( 'force', 'Skip confirmation', false );
+		}
 
-	if ( _opts.format ) {
-		args.option( 'format', 'Format results', 'table' );
-	}
+		if ( _opts.format ) {
+			args.option( 'format', 'Format results', 'table' );
+		}
 
-	// Add help and version to all subcommands
-	args.option( 'help', 'Output the help for the (sub)command' );
-	args.option( 'version', 'Output the version number' );
-	args.option( 'debug', 'Activate debug output' );
+		// Add help and version to all subcommands
+		args.option( 'help', 'Output the help for the (sub)command' );
+		args.option( 'version', 'Output the version number' );
+		args.option( 'debug', 'Activate debug output' );
+	}
 
 	return args;
 }
