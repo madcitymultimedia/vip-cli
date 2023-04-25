@@ -46,3 +46,4 @@ renovate.json
 .vscode
 .idea
 *.iml
+.devcontainer
