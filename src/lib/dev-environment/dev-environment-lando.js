@@ -101,6 +101,25 @@ async function getLandoConfig() {
 
 const appMap: Map<string, App> = new Map();
 
+async function getApplication( lando: Lando, instancePath: string ): Promise<App> {
+	const app = lando.getApp( instancePath );
+
+	app.events.on('post-init', 1, () => {
+		const initOnly = [];
+		Object.keys( app.config.services ).forEach( serviceName => {
+			if ( app.config.services[serviceName].initOnly ) {
+				initOnly.push( serviceName );
+				app.config.services[serviceName].scanner = false;
+			}
+		} );
+
+		app.services = app.services.filter( service => ! initOnly.includes( service ) );
+	} );
+
+	await app.init();
+	return app;
+}
+
 async function regenerateLandofile( instancePath: string ): Promise<void> {
 	const landoFile = path.join( instancePath, '.lando.yml' );
 
@@ -131,9 +150,7 @@ async function landoRecovery( lando: Lando, instancePath: string, error: Error )
 
 	console.error( chalk.green( 'Recovery successful, trying to initialize again...' ) );
 	try {
-		const app = lando.getApp( instancePath );
-		await app.init();
-		return app;
+		return await getApplication( lando, instancePath );
 	} catch ( initError ) {
 		console.error( `${ chalk.bold.red( 'Initialization failed, aborting.' ) } Please recreate the environment or contact support.` );
 		throw initError;
@@ -154,8 +171,7 @@ async function getLandoApplication( lando: Lando, instancePath: string ): Promis
 		let app;
 
 		try {
-			app = lando.getApp( instancePath );
-			await app.init();
+			app = await getApplication( lando, instancePath );
 		} catch ( error ) {
 			app = await landoRecovery( lando, instancePath, error );
 		}
