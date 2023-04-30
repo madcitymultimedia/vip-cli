@@ -150,7 +150,7 @@ services:
     type: compose
     services:
       image: ghcr.io/automattic/vip-container-images/wordpress:<%= wordpress.tag %>
-      command: sh -c "rsync -a --chown=www-data:www-data /wp/ /shared/; sleep infinity"
+      command: sh -c "if [ -f /usr/local/bin/entrypoint.sh ]; then exec /usr/local/bin/entrypoint.sh; else rsync -a --chown=www-data:www-data /wp/ /shared/; sleep infinity; fi"
       volumes:
         - ./wordpress:/shared
         - type: volume
@@ -158,6 +158,10 @@ services:
           target: /scripts
           volume:
             nocopy: true
+#      environment:
+#        LANDO_NO_SCRIPTS: 1
+#        LANDO_NEEDS_EXEC: 1
+    initOnly: true
 
 <% if ( muPlugins.mode == 'image' ) { %>
   vip-mu-plugins:
