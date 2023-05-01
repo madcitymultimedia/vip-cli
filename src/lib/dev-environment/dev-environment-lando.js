@@ -465,9 +465,19 @@ export async function checkEnvHealth( lando: Lando, instancePath: string ): Prom
 			} );
 		} );
 
-	const scanResults: ScanResult[] = await app.scanUrls( Object.keys( urls ), { max: 1 } );
-	const result: Record<string, boolean> = {};
+	const urlsToScan = Object.keys( urls );
+	let scanResults: ScanResult[] = [];
+	if ( Array.isArray( app.urls ) ) {
+		/** @type {ScanResult[]} app.urls */
+		scanResults = app.urls;
+		app.urls.forEach( entry => urlsToScan.splice( urlsToScan.indexOf( entry.url ), 1 ) );
+	}
 
+	if ( urlsToScan.length ) {
+		scanResults = scanResults.concat( await app.scanUrls( urlsToScan, { max: 1 } ) );
+	}
+
+	const result: Record<string, boolean> = {};
 	scanResults.forEach( scanResult => {
 		result[ urls[ scanResult.url ] ] = scanResult.status;
 	} );
