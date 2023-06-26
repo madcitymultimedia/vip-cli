@@ -103,9 +103,11 @@ async function getStatus( api, appId, envId ) {
 function getErrorMessage( importFailed, launched = false ) {
 	debug( { importFailed } );
 
-	const rollbackMessage = launched ? '' : `Your site is ${ chalk.blue(
-		'automatically being rolled back'
-	) } to the last backup prior to your import job.
+	const rollbackMessage = launched
+		? ''
+		: `Your site is ${ chalk.blue(
+				'automatically being rolled back'
+		  ) } to the last backup prior to your import job.
 `;
 
 	let message = importFailed.error;
@@ -256,7 +258,7 @@ ${ maybeExitPrompt }
 
 						// if the progress meta isn't filled out yet, wait until it is.
 						if ( ! statusSteps ) {
-							return setTimeout( checkStatus, IMPORT_SQL_PROGRESS_POLL_INTERVAL );
+							return setTimeout( checkStatus, IMPORT_SQL_PROGRESS_POLL_INTERVAL ); // NOSONAR
 						}
 
 						jobSteps = statusSteps.map( step => {
@@ -267,15 +269,22 @@ ${ maybeExitPrompt }
 							};
 						} );
 
-						if ( statusSteps.some( ( { result } ) => result === 'failed' ) && ! statusSteps.find( ( { name, result } ) => name === 'restore_db' && ! result ) ) {
+						if (
+							statusSteps.some( ( { result } ) => result === 'failed' ) &&
+							! statusSteps.find( ( { name, result } ) => name === 'restore_db' && ! result )
+						) {
 							jobStatus = 'error';
-						} else 	if ( statusSteps.every( ( { result } ) => result === 'success' ) ) {
+						} else if ( statusSteps.every( ( { result } ) => result === 'success' ) ) {
 							jobStatus = 'success';
-							importJob.completedAt = new Date( Math.max( ...statusSteps.map( step => step.finished_at ), 0 ) * 1000 ).toUTCString();
+							importJob.completedAt = new Date(
+								Math.max( ...statusSteps.map( step => step.finished_at ), 0 ) * 1000
+							).toUTCString();
 						}
 
 						if ( importStatus?.progress?.started_at ) {
-							importJob.createdAt = new Date( importStatus.progress.started_at * 1000 ).toUTCString();
+							importJob.createdAt = new Date(
+								importStatus.progress.started_at * 1000
+							).toUTCString();
 						}
 
 						importJob.progress = { status: jobStatus, steps: jobSteps };
@@ -361,11 +370,11 @@ ${ maybeExitPrompt }
 
 				overallStatus = 'running';
 
-				setTimeout( checkStatus, IMPORT_SQL_PROGRESS_POLL_INTERVAL );
+				setTimeout( checkStatus, IMPORT_SQL_PROGRESS_POLL_INTERVAL ); // NOSONAR
 			};
 
 			// Kick off the check
-			checkStatus();
+			void checkStatus();
 		} );
 
 	try {

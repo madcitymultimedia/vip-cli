@@ -17,7 +17,13 @@ import chalk from 'chalk';
 import { trackEvent } from '../lib/tracker';
 import command from '../lib/cli/command';
 import * as exit from '../lib/cli/exit';
-import { createEnvironment, printEnvironmentInfo, getApplicationInformation, doesEnvironmentExist, getEnvironmentPath } from '../lib/dev-environment/dev-environment-core';
+import {
+	createEnvironment,
+	printEnvironmentInfo,
+	getApplicationInformation,
+	doesEnvironmentExist,
+	getEnvironmentPath,
+} from '../lib/dev-environment/dev-environment-core';
 import {
 	DEFAULT_SLUG,
 	getEnvironmentName,
@@ -26,8 +32,8 @@ import {
 	addDevEnvConfigurationOptions,
 	getOptionsFromAppInfo,
 	handleCLIException,
-	processBooleanOption,
 	validateDependencies,
+	processStringOrBooleanOption,
 	handleDeprecatedOptions,
 } from '../lib/dev-environment/dev-environment-cli';
 import {
@@ -59,18 +65,25 @@ const examples = [
 	},
 	{
 		usage: `${ DEV_ENVIRONMENT_FULL_COMMAND } create --slug=test`,
-		description: 'Assigning unique slugs to environments allows multiple environments to be created.',
+		description:
+			'Assigning unique slugs to environments allows multiple environments to be created.',
 	},
 	{
 		usage: `${ DEV_ENVIRONMENT_FULL_COMMAND } create --multisite --wordpress="5.8" --app-code="~/git/my_code"`,
-		description: 'Creates a local multisite dev environment using WP 5.8 and application code is expected to be in "~/git/my_code"',
+		description:
+			'Creates a local multisite dev environment using WP 5.8 and application code is expected to be in "~/git/my_code"',
+	},
+	{
+		usage: `${ DEV_ENVIRONMENT_FULL_COMMAND } create --multisite=subdirectory --wordpress="5.8" --app-code="~/git/my_code"`,
+		description:
+			'Creates a local multisite dev environment with a subdirectory URL structure using WP 5.8 and application code is expected to be in "~/git/my_code"',
 	},
 ];
 
 const cmd = command()
 	.option( 'slug', 'Custom name of the dev environment' )
 	.option( 'title', 'Title for the WordPress site' )
-	.option( 'multisite', 'Enable multisite install', undefined, processBooleanOption );
+	.option( 'multisite', 'Enable multisite install', undefined, processStringOrBooleanOption );
 
 addDevEnvConfigurationOptions( cmd );
 
@@ -87,7 +100,8 @@ cmd.argv( process.argv, async ( arg, opt ) => {
 
 	let slug = DEFAULT_SLUG;
 
-	const hasConfiguration = ( Object.keys( opt ).length !== 0 ) || Object.keys( configurationFileOptions ).length > 0;
+	const hasConfiguration =
+		Object.keys( opt ).length !== 0 || Object.keys( configurationFileOptions ).length > 0;
 	if ( hasConfiguration ) {
 		slug = await getEnvironmentName( environmentNameOptions );
 	}
@@ -110,7 +124,8 @@ cmd.argv( process.argv, async ( arg, opt ) => {
 
 	const environmentAlreadyExists = await doesEnvironmentExist( getEnvironmentPath( slug ) );
 	if ( environmentAlreadyExists ) {
-		const messageToShow = `Environment already exists\n\n\nTo start the environment run:\n\n${ startCommand }\n\n` +
+		const messageToShow =
+			`Environment already exists\n\n\nTo start the environment run:\n\n${ startCommand }\n\n` +
 			`To create another environment use ${ chalk.bold( '--slug' ) } option with a unique name.\n`;
 
 		exit.withError( messageToShow );
@@ -140,7 +155,11 @@ cmd.argv( process.argv, async ( arg, opt ) => {
 		suppressPrompts = true;
 	}
 
-	const instanceData = await promptForArguments( preselectedOptions, defaultOptions, suppressPrompts );
+	const instanceData = await promptForArguments(
+		preselectedOptions,
+		defaultOptions,
+		suppressPrompts
+	);
 	instanceData.siteSlug = slug;
 
 	try {
@@ -148,7 +167,10 @@ cmd.argv( process.argv, async ( arg, opt ) => {
 
 		await printEnvironmentInfo( lando, slug, { extended: false, suppressWarnings: true } );
 
-		const message = '\n' + chalk.green( '✓' ) + ` environment created.\n\nTo start it please run:\n\n${ startCommand }\n`;
+		const message =
+			'\n' +
+			chalk.green( '✓' ) +
+			` environment created.\n\nTo start it please run:\n\n${ startCommand }\n`;
 		console.log( message );
 
 		await trackEvent( 'dev_env_create_command_success', trackingInfo );

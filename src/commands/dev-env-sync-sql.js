@@ -11,6 +11,7 @@
 
 import fs from 'fs';
 import chalk from 'chalk';
+import urlLib from 'url';
 import { replace } from '@automattic/vip-search-replace';
 
 /**
@@ -32,14 +33,9 @@ import { DevEnvImportSQLCommand } from './dev-env-import-sql';
  */
 function findSiteHomeUrl( sql ) {
 	const regex = "'(siteurl|home)',\\s?'(.*?)'";
-	const results = sql.match( regex );
+	const url = sql.match( regex )?.[ 2 ] || '';
 
-	if ( results ) {
-		const domain = results[ 2 ].replace( /https?:\/\//, '' );
-		return domain;
-	}
-
-	return null;
+	return urlLib.parse( url ).hostname || null;
 }
 
 /**
@@ -53,16 +49,17 @@ async function extractSiteUrls( sqlFile ) {
 	const readInterface = await getReadInterface( sqlFile );
 
 	return new Promise( ( resolve, reject ) => {
-		const domains = [];
+		const domains = new Set();
 		readInterface.on( 'line', line => {
 			const domain = findSiteHomeUrl( line );
 			if ( domain ) {
-				domains.push( domain );
+				domains.add( domain );
 			}
 		} );
 
 		readInterface.on( 'close', () => {
-			resolve( domains );
+			// Soring by length so that longest domains are replaced first
+			resolve( Array.from( domains ).sort( ( dom1, dom2 ) => dom2.length - dom1.length ) );
 		} );
 
 		readInterface.on( 'error', reject );
@@ -75,18 +72,22 @@ export class DevEnvSyncSQLCommand {
 	slug;
 	tmpDir;
 	siteUrls;
+	searchReplaceMap;
+	track;
 
 	/**
 	 * Creates a new instance of the command
 	 *
-	 * @param {string} app  The app object
-	 * @param {string} env  The environment object
-	 * @param {string} slug The site slug
+	 * @param {string}   app       The app object
+	 * @param {string}   env       The environment object
+	 * @param {string}   slug      The site slug
+	 * @param {Function} trackerFn Function to call for tracking
 	 */
-	constructor( app, env, slug ) {
+	constructor( app, env, slug, trackerFn = () => {} ) {
 		this.app = app;
 		this.env = env;
 		this.slug = slug;
+		this.track = trackerFn;
 		this.tmpDir = makeTempDir();
 	}
 
@@ -109,7 +110,7 @@ export class DevEnvSyncSQLCommand {
 	 * @return {Promise<void>} Promise that resolves when the export is complete
 	 */
 	async generateExport() {
-		const exportCommand = new ExportSQLCommand( this.app, this.env, this.gzFile );
+		const exportCommand = new ExportSQLCommand( this.app, this.env, this.gzFile, this.track );
 		await exportCommand.run();
 	}
 
@@ -121,15 +122,40 @@ export class DevEnvSyncSQLCommand {
 	 * @throws {Error} If there is an error reading the file
 	 */
 	async runSearchReplace() {
-		const replacements = this.siteUrls.reduce( ( acc, url ) => [ ...acc, url, this.landoDomain ], [] );
+		const replacements = Object.entries( this.searchReplaceMap ).flat();
 		const readStream = fs.createReadStream( this.sqlFile );
 		const replacedStream = await replace( readStream, replacements );
-		replacedStream.pipe( fs.createWriteStream( this.sqlFile ) );
+
+		const outputFile = `${ this.tmpDir }/sql-export-sr.sql`;
+		replacedStream.pipe( fs.createWriteStream( outputFile ) );
 
 		return new Promise( ( resolve, reject ) => {
-			replacedStream.on( 'finish', resolve );
+			replacedStream.on( 'finish', () => {
+				fs.renameSync( outputFile, this.sqlFile );
+				resolve();
+			} );
 			replacedStream.on( 'error', reject );
 		} );
+	}
+
+	generateSearchReplaceMap() {
+		this.searchReplaceMap = {};
+
+		for ( const url of this.siteUrls ) {
+			this.searchReplaceMap[ url ] = this.landoDomain;
+		}
+
+		const networkSites = this.env.wpSitesSDS.nodes;
+		if ( ! networkSites ) return;
+
+		for ( const site of networkSites ) {
+			if ( ! site.blogId || site.blogId === 1 ) continue;
+
+			const url = site.homeUrl.replace( /https?:\/\//, '' );
+			if ( ! this.searchReplaceMap[ url ] ) continue;
+
+			this.searchReplaceMap[ url ] = `${ site.blogId }.${ this.landoDomain }`;
+		}
 	}
 
 	/**
@@ -140,11 +166,10 @@ export class DevEnvSyncSQLCommand {
 	 */
 	async runImport() {
 		const importOptions = {
-			slug: this.slug,
 			inPlace: true,
 			skipValidate: true,
 		};
-		const importCommand = new DevEnvImportSQLCommand( this.sqlFile, importOptions );
+		const importCommand = new DevEnvImportSQLCommand( this.sqlFile, importOptions, this.slug );
 		await importCommand.run( true );
 	}
 
@@ -158,6 +183,14 @@ export class DevEnvSyncSQLCommand {
 		try {
 			await this.generateExport();
 		} catch ( err ) {
+			// this.generateExport probably catches all exceptions, track the event and runs exit.withError() but if things go really wrong
+			// and we have no tracking data, we would at least have it logged here.
+			// the following will not get executed if this.generateExport() calls exit.withError() on all exception
+			await this.track( 'error', {
+				error_type: 'export_sql_backup',
+				error_message: err?.message,
+				stack: err?.stack,
+			} );
 			exit.withError( `Error exporting SQL backup: ${ err?.message }` );
 		}
 
@@ -166,24 +199,43 @@ export class DevEnvSyncSQLCommand {
 			await unzipFile( this.gzFile, this.sqlFile );
 			console.log( `${ chalk.green( '✓' ) } Extracted to ${ this.sqlFile }` );
 		} catch ( err ) {
-			exit.withError( `Error extracting the SQL export: ${ err?.message }` );
+			await this.track( 'error', {
+				error_type: 'archive_extraction',
+				error_message: err?.message,
+				stack: err?.stack,
+			} );
+			exit.withError( `Error extracting the SQL export: ${ err.message }` );
 		}
 
 		try {
 			console.log( 'Extracting site urls from the SQL file...' );
 			this.siteUrls = await extractSiteUrls( this.sqlFile );
 		} catch ( err ) {
+			await this.track( 'error', {
+				error_type: 'extract_site_urls',
+				error_message: err?.message,
+				stack: err?.stack,
+			} );
 			exit.withError( `Error extracting site URLs: ${ err?.message }` );
 		}
 
+		console.log( 'Generating search-replace configuration...' );
+		this.generateSearchReplaceMap();
+
 		try {
 			console.log( 'Running the following search-replace operations on the SQL file:' );
-			this.siteUrls.forEach( domain => {
-				console.log( `  ${ domain } -> ${ this.landoDomain }` );
-			} );
+			for ( const [ domain, landoDomain ] of Object.entries( this.searchReplaceMap ) ) {
+				console.log( `  ${ domain } -> ${ landoDomain }` );
+			}
+
 			await this.runSearchReplace();
 			console.log( `${ chalk.green( '✓' ) } Search-replace operation is complete` );
 		} catch ( err ) {
+			await this.track( 'error', {
+				error_type: 'search_replace',
+				error_message: err?.message,
+				stack: err?.stack,
+			} );
 			exit.withError( `Error replacing domains: ${ err?.message }` );
 		}
 
@@ -192,6 +244,11 @@ export class DevEnvSyncSQLCommand {
 			await this.runImport();
 			console.log( `${ chalk.green( '✓' ) } SQL file imported` );
 		} catch ( err ) {
+			await this.track( 'error', {
+				error_type: 'import_sql_file',
+				error_message: err?.message,
+				stack: err?.stack,
+			} );
 			exit.withError( `Error importing SQL file: ${ err?.message }` );
 		}
 	}

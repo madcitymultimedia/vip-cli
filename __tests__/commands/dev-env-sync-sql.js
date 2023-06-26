@@ -44,6 +44,7 @@ const mockWriteStream = getMockStream( [ { name: 'finish' } ], 20 );
 
 jest.spyOn( fs, 'createReadStream' ).mockReturnValue( mockReadStream );
 jest.spyOn( fs, 'createWriteStream' ).mockReturnValue( mockWriteStream );
+jest.spyOn( fs, 'renameSync' ).mockImplementation( () => {} );
 jest.mock( '@automattic/vip-search-replace', () => {
 	return {
 		replace: jest.fn(),
@@ -65,9 +66,11 @@ replace.mockResolvedValue( mockReadStream );
 unzipFile.mockResolvedValue();
 getReadInterface.mockReturnValue( getMockStream( [ { name: 'close' } ] ), 100 );
 
+jest.spyOn( console, 'log' ).mockImplementation( () => {} );
+
 describe( 'commands/DevEnvSyncSQLCommand', () => {
 	const app = { id: 123, name: 'test-app' };
-	const env = { id: 456, name: 'test-env' };
+	const env = { id: 456, name: 'test-env', wpSitesSDS: {} };
 
 	describe( '.generateExport', () => {
 		it( 'should create an instance of ExportSQLCommand and run', async () => {
@@ -81,14 +84,28 @@ describe( 'commands/DevEnvSyncSQLCommand', () => {
 		} );
 	} );
 
+	describe( 'generateSearchReplaceMap', () => {
+		it( 'should return a map of search-replace values', () => {
+			const cmd = new DevEnvSyncSQLCommand( app, env, 'test-slug' );
+			cmd.slug = 'test-slug';
+			cmd.siteUrls = [ 'test.go-vip.com' ];
+			cmd.generateSearchReplaceMap();
+
+			expect( cmd.searchReplaceMap ).toEqual( { 'test.go-vip.com': 'test-slug.vipdev.lndo.site' } );
+		} );
+	} );
+
 	describe( '.runSearchReplace', () => {
 		it( 'should run search-replace operation on the SQL file', async () => {
 			const cmd = new DevEnvSyncSQLCommand( app, env, 'test-slug' );
-			cmd.siteUrls = [ 'test.go-vip.com' ];
+			cmd.searchReplaceMap = { 'test.go-vip.com': 'test-slug.vipdev.lndo.site' };
 			cmd.slug = 'test-slug';
 
 			await cmd.runSearchReplace();
-			expect( replace ).toHaveBeenCalledWith( mockReadStream, [ 'test.go-vip.com', 'test-slug.vipdev.lndo.site' ] );
+			expect( replace ).toHaveBeenCalledWith( mockReadStream, [
+				'test.go-vip.com',
+				'test-slug.vipdev.lndo.site',
+			] );
 		} );
 	} );
 
@@ -107,6 +124,7 @@ describe( 'commands/DevEnvSyncSQLCommand', () => {
 	describe( '.run', () => {
 		const syncCommand = new DevEnvSyncSQLCommand( app, env, 'test-slug' );
 		const exportSpy = jest.spyOn( syncCommand, 'generateExport' );
+		const generateSearchReplaceMapSpy = jest.spyOn( syncCommand, 'generateSearchReplaceMap' );
 		const searchReplaceSpy = jest.spyOn( syncCommand, 'runSearchReplace' );
 		const importSpy = jest.spyOn( syncCommand, 'runImport' );
 
@@ -127,6 +145,7 @@ describe( 'commands/DevEnvSyncSQLCommand', () => {
 
 			expect( exportSpy ).toHaveBeenCalled();
 			expect( unzipFile ).toHaveBeenCalled();
+			expect( generateSearchReplaceMapSpy ).toHaveBeenCalled();
 			expect( searchReplaceSpy ).toHaveBeenCalled();
 			expect( importSpy ).toHaveBeenCalled();
 		} );

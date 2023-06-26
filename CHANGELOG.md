@@ -1,5 +1,56 @@
 ## Changelog
 
+### 2.31.0
+
+- #1397	feature(dev-env): Add ability to sync multisites
+- #1399	chore(dev-deps): Remove stub type definitions
+- #1394	FORNO-1609: Combine all error events into one error event
+- #1345	feat(dev-env): Add Photon
+- #1398	Fix coverage generation
+- #1395	Add types for the other ways of using enquirer
+- #1388	Typescript: refactor `vip-whoami`
+- #1393	refactor: Convert `lib/{app-logs,envvar}` to TypeScript
+- #1392	refactor: Convert `lib/config` to TypeScript
+- #1391	refactor: Convert lib to TypeScript
+- #1390	chore(deps): Update @automattic/vip-search-replace to 1.1.1
+- #1389	Replace 'site' by 'environment' in error msg
+- #1385	refactor: Convert lib/api to TypeScript
+- #1387	chore(deps): Update @automattic/vip-search-replace to 1.1.0
+- #1386	fix: Fix `getAbsolutePath()` and convert `utils.js` to TypeScript
+- #1383	fix(dev-env): Pull uniqueLabel field from backend
+- #1382	test: Reduce noise from tests
+- #1384	fix: Add return type to parseEnvAliasFromArgv()
+- #1381	refactor: Convert lib/cli and dependencies to TypeScript
+- #1377	chore: Configure linting for TS files
+- #1380	chore(dev-deps): Remove jest-environment-jsdom
+- #1378	refactor: Convert analytics and dependencies to TypeScript
+
+### 2.30.0
+
+- #1264	feature(dev-env): Add dev-env-sync-sql command
+- #1376	refactor: Convert keychain to TypeScript
+- #1370	fix: Fix issues found by SonarCloud
+- #1374	Add TypeScript support
+- #1334	Dev-env: Allow --multisite to accept boolean, subdirectory, or subdomain values
+- #1375	fix(api): Set non-zero exit code on error
+- #1373	Reverting accidental push to vip-cli
+
+### 2.29.1
+
+- #1372 fix(export): Make vip-export-sql.js executable
+
+### 2.29.0
+
+- #1362	feature(dev-env): Add vip export sql command
+- #1357	chore(deps): Update semver from 7.5.0 to 7.5.1
+- #1360	chore(dev-deps): Update flow-bin from 0.205.1 to 0.206.0
+- #1365	chore(deps): Fix CVE-2023-32695
+- #1356	fix(dev-env): Handle `--media-redirect-domain` in `vip dev-env update`
+- #1361	chore(dev-deps): Update packages related to linting
+- #1364	fix(dev-env): Fix "Cannot read properties of undefined" in `preProcessInstanceData()`
+- #1363	fix(dev-env): Add error handling to readEnvironmentData()
+- #1317	Auto-login support
+
 ### 2.28.3
 
 - #1352 chore(deps): Update node-fetch from 2.6.9 to 2.6.11

@@ -16,7 +16,6 @@ import config from '../lib/cli/config';
 import command, { containsAppEnvArgument } from '../lib/cli/command';
 import Token from '../lib/token';
 import { trackEvent, aliasUser } from '../lib/tracker';
-import { rollbar } from '../lib/rollbar';
 import logout from '../lib/logout';
 
 const debug = debugLib( '@automattic/vip:bin:vip' );
@@ -31,7 +30,7 @@ if ( config && config.environment !== 'production' ) {
 // Config
 const tokenURL = 'https://dashboard.wpvip.com/me/cli/token';
 
-const runCmd = async function() {
+const runCmd = async function () {
 	const cmd = command();
 	cmd
 		.command( 'logout', 'Logout from your current session', async () => {
@@ -43,6 +42,7 @@ const runCmd = async function() {
 		.command( 'cache', 'Manage page cache for your VIP applications' )
 		.command( 'config', 'Set configuration for your VIP applications' )
 		.command( 'dev-env', 'Use local dev-environment' )
+		.command( 'export', 'Export data from your VIP application' )
 		.command( 'import', 'Import media or SQL files into your VIP applications' )
 		.command( 'logs', 'Get logs from your VIP applications' )
 		.command( 'search-replace', 'Perform search and replace tasks on files' )
@@ -54,32 +54,32 @@ const runCmd = async function() {
 	cmd.argv( process.argv );
 };
 
-function doesArgvHaveAtLeastOneParam( argv: Array, params: Array ) {
+function doesArgvHaveAtLeastOneParam( argv: Array< any >, params: Array< any > ): boolean {
 	return argv.some( arg => params.includes( arg ) );
 }
 
-const rootCmd = async function() {
+const rootCmd = async function () {
 	let token = await Token.get();
 
 	const isHelpCommand = doesArgvHaveAtLeastOneParam( process.argv, [ 'help', '-h', '--help' ] );
 	const isVersionCommand = doesArgvHaveAtLeastOneParam( process.argv, [ '-v', '--version' ] );
 	const isLogoutCommand = doesArgvHaveAtLeastOneParam( process.argv, [ 'logout' ] );
 	const isLoginCommand = doesArgvHaveAtLeastOneParam( process.argv, [ 'login' ] );
-	const isDevEnvCommandWithoutEnv = doesArgvHaveAtLeastOneParam( process.argv, [ 'dev-env' ] ) && ! containsAppEnvArgument( process.argv );
+	const isDevEnvCommandWithoutEnv =
+		doesArgvHaveAtLeastOneParam( process.argv, [ 'dev-env' ] ) &&
+		! containsAppEnvArgument( process.argv );
 
 	debug( 'Argv:', process.argv );
 
 	if (
 		! isLoginCommand &&
-		(
-			isLogoutCommand ||
+		( isLogoutCommand ||
 			isHelpCommand ||
 			isVersionCommand ||
 			isDevEnvCommandWithoutEnv ||
-			( token && token.valid() )
-		)
+			token?.valid() )
 	) {
-		runCmd();
+		await runCmd();
 	} else {
 		console.log();
 		console.log( '   _    __ ________         ________    ____' );
@@ -128,7 +128,6 @@ const rootCmd = async function() {
 		} catch ( err ) {
 			console.log( 'The token provided is malformed. Please check the token and try again.' );
 
-			rollbar.error( err );
 			await trackEvent( 'login_command_token_submit_error', { error: err.message } );
 
 			return;
@@ -151,13 +150,12 @@ const rootCmd = async function() {
 		}
 
 		try {
-			Token.set( token.raw );
+			await Token.set( token.raw );
 		} catch ( err ) {
 			await trackEvent( 'login_command_token_submit_error', {
 				error: err.message,
 			} );
 
-			rollbar.error( err );
 			throw err;
 		}
 
@@ -172,8 +170,9 @@ const rootCmd = async function() {
 			process.exit();
 		}
 
-		runCmd();
+		await runCmd();
 	}
 };
 
-rootCmd();
+// We may end up having an unhandled rejection here :-(
+void rootCmd();

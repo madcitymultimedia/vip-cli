@@ -75,8 +75,13 @@ services:
     run_as_root:
       - chown www-data:www-data /wp/wp-content/mu-plugins /wp/config /wp/log /wp/wp-content/uploads /wp
     run:
-      - sh /dev-tools/setup.sh database root "http://<%= siteSlug %>.vipdev.lndo.site/" "<%= wpTitle %>" <% if ( multisite ) { %> <%= siteSlug %>.vipdev.lndo.site <% } %>
-
+      - >
+        sh /dev-tools/setup.sh
+        --host database
+        --user root
+        --domain "http://<%= siteSlug %>.vipdev.lndo.site/"
+        --title "<%= wpTitle %>"
+        <% if ( multisite ) { %>--ms-domain "<%= siteSlug %>.vipdev.lndo.site" <% if ( multisite === true || multisite === 'subdomain' ) { %>--subdomain <% } %> <% } %>
   database:
     type: compose
     services:
@@ -223,6 +228,20 @@ services:
         LANDO_NO_USER_PERMS: 1
         LANDO_NO_SCRIPTS: 1
         LANDO_NEEDS_EXEC: 1
+<% } %>
+
+<% if ( photon ) { %>
+  photon:
+    type: compose
+    services:
+      image: ghcr.io/automattic/vip-container-images/photon:latest
+      command: /usr/sbin/php-fpm
+      environment:
+        LANDO_NO_USER_PERMS: 1
+        LANDO_NO_SCRIPTS: 1
+        LANDO_NEEDS_EXEC: 1
+      volumes:
+        - ./uploads:/usr/share/webapps/photon/uploads:ro
 <% } %>
 
 tooling:

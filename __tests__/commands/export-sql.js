@@ -5,7 +5,11 @@
 /**
  * Internal dependencies
  */
-import { ExportSQLCommand, CREATE_EXPORT_JOB_MUTATION, GENERATE_DOWNLOAD_LINK_MUTATION } from '../../src/commands/export-sql';
+import {
+	ExportSQLCommand,
+	CREATE_EXPORT_JOB_MUTATION,
+	GENERATE_DOWNLOAD_LINK_MUTATION,
+} from '../../src/commands/export-sql';
 import API from '../../src/lib/api';
 
 const mockApp = {
@@ -63,7 +67,7 @@ const queryMock = jest.fn().mockImplementation( () => {
 	};
 } );
 
-jest.mock( 'lib/api', () => jest.fn() );
+jest.mock( '../../src/lib/api', () => jest.fn() );
 API.mockImplementation( () => {
 	return {
 		query: queryMock,
@@ -94,9 +98,10 @@ API.mockImplementation( () => {
 	};
 } );
 
+jest.spyOn( console, 'log' ).mockImplementation( () => {} );
+
 describe( 'commands/ExportSQLCommand', () => {
-	beforeEach( () => {
-	} );
+	beforeEach( () => {} );
 
 	describe( '.getExportJob', () => {
 		const app = { id: 123, name: 'test-app' };

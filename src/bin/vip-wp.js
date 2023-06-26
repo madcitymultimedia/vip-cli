@@ -22,7 +22,6 @@ import { formatEnvironment, requoteArgs } from '../lib/cli/format';
 import { confirm } from '../lib/cli/prompt';
 import { trackEvent } from '../lib/tracker';
 import Token from '../lib/token';
-import { rollbar } from '../lib/rollbar';
 import { createProxyAgent } from '../lib/http/proxy-agent';
 
 const debug = debugLib( '@automattic/vip:wp' );
@@ -94,50 +93,48 @@ const bindStreamEvents = ( { subShellRl, commonTrackingParams, isSubShell, stdou
 const getTokenForCommand = async ( appId, envId, command ) => {
 	const api = await API();
 
-	return api
-		.mutate( {
-			// $FlowFixMe: gql template is not supported by flow
-			mutation: gql`
-				mutation TriggerWPCLICommandMutation($input: AppEnvironmentTriggerWPCLICommandInput ){
-					triggerWPCLICommandOnAppEnvironment( input: $input ) {
-						inputToken
-						command {
-							guid
-						}
+	return api.mutate( {
+		// $FlowFixMe: gql template is not supported by flow
+		mutation: gql`
+			mutation TriggerWPCLICommandMutation($input: AppEnvironmentTriggerWPCLICommandInput) {
+				triggerWPCLICommandOnAppEnvironment(input: $input) {
+					inputToken
+					command {
+						guid
 					}
 				}
-			`,
-			variables: {
-				input: {
-					id: appId,
-					environmentId: envId,
-					command,
-				},
+			}
+		`,
+		variables: {
+			input: {
+				id: appId,
+				environmentId: envId,
+				command,
 			},
-		} );
+		},
+	} );
 };
 
 // eslint-disable-next-line no-unused-vars
 const cancelCommand = async guid => {
 	const api = await API();
-	return api
-		.mutate( {
+	return api.mutate( {
 		// $FlowFixMe: gql template is not supported by flow
-			mutation: gql`
-			mutation cancelWPCLICommand($input: CancelWPCLICommandInput ){
-				cancelWPCLICommand( input: $input ) {
+		mutation: gql`
+			mutation cancelWPCLICommand($input: CancelWPCLICommandInput) {
+				cancelWPCLICommand(input: $input) {
 					command {
 						id
 					}
 				}
 			}
 		`,
-			variables: {
-				input: {
-					guid,
-				},
+		variables: {
+			input: {
+				guid,
 			},
-		} );
+		},
+	} );
 };
 
 const launchCommandAndGetStreams = async ( { socket, guid, inputToken, offset = 0 } ) => {
@@ -173,24 +170,31 @@ const launchCommandAndGetStreams = async ( { socket, guid, inputToken, offset = 
 
 	IOStream( socket ).on( 'error', err => {
 		// This returns the error so it can be catched by the socket.on('error')
-		rollbar.error( err );
 		return err;
 	} );
 
 	socket.on( 'error', err => {
 		if ( err === 'Rate limit exceeded' ) {
-			console.log( chalk.red( '\nError:' ), 'Rate limit exceeded: Please wait a moment and try again.' );
+			console.log(
+				chalk.red( '\nError:' ),
+				'Rate limit exceeded: Please wait a moment and try again.'
+			);
 			return;
 		}
 
-		rollbar.error( err );
 		console.log( err );
 	} );
 
 	return { stdinStream, stdoutStream, socket };
 };
 
-const bindReconnectEvents = ( { cliCommand, inputToken, subShellRl, commonTrackingParams, isSubShell } ) => {
+const bindReconnectEvents = ( {
+	cliCommand,
+	inputToken,
+	subShellRl,
+	commonTrackingParams,
+	isSubShell,
+} ) => {
 	currentJob.socket.io.removeAllListeners( 'reconnect' );
 	currentJob.socket.io.removeAllListeners( 'reconnect_attempt' );
 	currentJob.socket.removeAllListeners( 'retry' );
@@ -198,12 +202,11 @@ const bindReconnectEvents = ( { cliCommand, inputToken, subShellRl, commonTracki
 
 	currentJob.socket.io.on( 'reconnect', async () => {
 		debug( 'socket.io: reconnect' );
-		rollbar.info( 'WP-CLI socket.io.on( \'reconnect\' )', { custom: { code: 'wp-cli-on-reconnect', commandGuid: cliCommand.guid } } );
 
 		// Close old streams
 		unpipeStreamsFromProcess( { stdin: currentJob.stdinStream, stdout: currentJob.stdoutStream } );
 
-		trackEvent( 'wpcli_command_reconnect', commonTrackingParams );
+		trackEvent( 'wpcli_command_reconnect', commonTrackingParams ).catch( () => {} );
 
 		currentJob = await launchCommandAndGetStreams( {
 			socket: currentJob.socket,
@@ -215,7 +218,12 @@ const bindReconnectEvents = ( { cliCommand, inputToken, subShellRl, commonTracki
 		// Rebind new streams
 		pipeStreamsToProcess( { stdin: currentJob.stdinStream, stdout: currentJob.stdoutStream } );
 
-		bindStreamEvents( { subShellRl, isSubShell, commonTrackingParams, stdoutStream: currentJob.stdoutStream } );
+		bindStreamEvents( {
+			subShellRl,
+			isSubShell,
+			commonTrackingParams,
+			stdoutStream: currentJob.stdoutStream,
+		} );
 
 		bindReconnectEvents( { cliCommand, inputToken, subShellRl, commonTrackingParams, isSubShell } );
 
@@ -225,7 +233,6 @@ const bindReconnectEvents = ( { cliCommand, inputToken, subShellRl, commonTracki
 
 	currentJob.socket.on( 'retry', async () => {
 		debug( 'socket: retry' );
-		rollbar.info( 'WP-CLI socket.io.on( \'retry\' )', { custom: { code: 'wp-cli-on-retry', commandGuid: cliCommand.guid } } );
 
 		setTimeout( () => {
 			currentJob.socket.io.engine.close();
@@ -234,7 +241,6 @@ const bindReconnectEvents = ( { cliCommand, inputToken, subShellRl, commonTracki
 
 	currentJob.socket.on( 'connect_error', () => {
 		debug( 'socket: connect_error; forcing the preference for websocket' );
-		rollbar.info( 'WP-CLI socket.on( \'connect_error\' )', { custom: { code: 'wp-cli-on-connect_error', commandGuid: cliCommand.guid } } );
 
 		// Force the preference for WebSocket in case we see an error during connection
 		// https://socket.io/docs/v3/client-initialization/#low-level-engine-options
@@ -267,7 +273,12 @@ const bindReconnectEvents = ( { cliCommand, inputToken, subShellRl, commonTracki
 		}
 		process.stdin.pipe( IOStream.createStream() );
 		currentJob.stdoutStream = IOStream.createStream();
-		bindStreamEvents( { subShellRl, isSubShell, commonTrackingParams, stdoutStream: currentJob.stdoutStream } );
+		bindStreamEvents( {
+			subShellRl,
+			isSubShell,
+			commonTrackingParams,
+			stdoutStream: currentJob.stdoutStream,
+		} );
 	} );
 };
 
@@ -288,7 +299,11 @@ commandWrapper( {
 		// Store only the first 2 parts of command to avoid recording secrets. Can be tweaked
 		const commandForAnalytics = quotedArgs.slice( 0, 2 ).join( ' ' );
 
-		const { id: appId, name: appName, organization: { id: orgId } } = opts.app;
+		const {
+			id: appId,
+			name: appName,
+			organization: { id: orgId },
+		} = opts.app;
 		const { id: envId, type: envName } = opts.env;
 
 		/* eslint-disable camelcase */
@@ -301,22 +316,33 @@ commandWrapper( {
 		};
 		/* eslint-enable camelcase */
 
-		trackEvent( 'wpcli_command_execute', commonTrackingParams );
+		trackEvent( 'wpcli_command_execute', commonTrackingParams ).catch( () => {} );
 
 		if ( isSubShell ) {
 			// Reset the cursor (can get messed up with enquirer)
 			process.stdout.write( '\u001b[?25h' );
-			console.log( `Welcome to the WP CLI shell for the ${ formatEnvironment( envName ) } environment of ${ chalk.green( appName ) } (${ opts.env.primaryDomain.name })!` );
+			console.log(
+				`Welcome to the WP CLI shell for the ${ formatEnvironment(
+					envName
+				) } environment of ${ chalk.green( appName ) } (${ opts.env.primaryDomain.name })!`
+			);
 		} else if ( envName === 'production' ) {
-			const yes = opts.yes || await confirm( [
-				{
-					key: 'command',
-					value: `wp ${ cmd }`,
-				},
-			], `Are you sure you want to run this command on ${ formatEnvironment( envName ) } for site ${ appName }?` );
+			const yes =
+				opts.yes ||
+				( await confirm(
+					[
+						{
+							key: 'command',
+							value: `wp ${ cmd }`,
+						},
+					],
+					`Are you sure you want to run this command on ${ formatEnvironment(
+						envName
+					) } for site ${ appName }?`
+				) );
 
 			if ( ! yes ) {
-				trackEvent( 'wpcli_confirm_cancel', commonTrackingParams );
+				trackEvent( 'wpcli_confirm_cancel', commonTrackingParams ).catch( () => {} );
 
 				console.log( 'Command cancelled' );
 				process.exit();
@@ -378,7 +404,10 @@ commandWrapper( {
 			const userCmdCancelled = line === cancelCommandChar;
 
 			if ( ( empty || ! startsWithWp ) && ! userCmdCancelled ) {
-				console.log( chalk.red( 'Error:' ), 'invalid command, please pass a valid WP CLI command.' );
+				console.log(
+					chalk.red( 'Error:' ),
+					'invalid command, please pass a valid WP CLI command.'
+				);
 				subShellRl.prompt();
 				return;
 			}
@@ -396,7 +425,6 @@ commandWrapper( {
 					} );
 				} else {
 					// Else, other type of error, just dump it
-					rollbar.error( error );
 					console.log( error );
 				}
 
@@ -409,11 +437,11 @@ commandWrapper( {
 				return;
 			}
 
-			const { data: { triggerWPCLICommandOnAppEnvironment: { command: cliCommand, inputToken } } } = result;
-
-			if ( line.includes( "'" ) ) {
-				rollbar.info( 'WP-CLI Command containing single quotes', { custom: { code: 'wp-cli-single-quotes', commandGuid: cliCommand.guid } } );
-			}
+			const {
+				data: {
+					triggerWPCLICommandOnAppEnvironment: { command: cliCommand, inputToken },
+				},
+			} = result;
 
 			const token = await Token.get();
 			const extraHeaders = {
@@ -442,16 +470,27 @@ commandWrapper( {
 
 			commandRunning = true;
 
-			bindStreamEvents( { subShellRl, commonTrackingParams, isSubShell, stdoutStream: currentJob.stdoutStream } );
+			bindStreamEvents( {
+				subShellRl,
+				commonTrackingParams,
+				isSubShell,
+				stdoutStream: currentJob.stdoutStream,
+			} );
 
-			bindReconnectEvents( { cliCommand, inputToken, subShellRl, commonTrackingParams, isSubShell } );
+			bindReconnectEvents( {
+				cliCommand,
+				inputToken,
+				subShellRl,
+				commonTrackingParams,
+				isSubShell,
+			} );
 		} );
 
 		// Fix to re-add the \n character that readline strips when terminal == true
 		process.stdin.on( 'data', data => {
 			// only run this in interactive mode for prompts from WP commands
 			if ( commandRunning && 0 === Buffer.compare( data, Buffer.from( '\r' ) ) ) {
-				if ( currentJob && currentJob.stdinStream ) {
+				if ( currentJob?.stdinStream ) {
 					currentJob.stdinStream.write( '\n' );
 				}
 			}
@@ -467,7 +506,7 @@ commandWrapper( {
 			// write out CTRL-C/SIGINT
 			process.stdin.write( cancelCommandChar );
 
-			if ( currentJob && currentJob.stdoutStream ) {
+			if ( currentJob?.stdoutStream ) {
 				currentJob.stdoutStream.end();
 			}
 

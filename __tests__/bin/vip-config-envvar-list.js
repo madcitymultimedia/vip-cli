@@ -9,7 +9,6 @@ import { listEnvVarsCommand } from '../../src/bin/vip-config-envvar-list';
 import command from '../../src/lib/cli/command';
 import { formatData } from '../../src/lib/cli/format';
 import { listEnvVars } from '../../src/lib/envvar/api';
-import { rollbar } from '../../src/lib/rollbar';
 import { trackEvent } from '../../src/lib/tracker';
 
 function mockExit() {
@@ -17,7 +16,6 @@ function mockExit() {
 }
 
 jest.spyOn( console, 'log' ).mockImplementation( () => {} );
-jest.spyOn( rollbar, 'error' ).mockImplementation( () => {} );
 jest.spyOn( process, 'exit' ).mockImplementation( mockExit );
 
 jest.mock( 'lib/cli/command', () => {
@@ -29,20 +27,20 @@ jest.mock( 'lib/cli/command', () => {
 	return jest.fn( () => commandMock );
 } );
 
-jest.mock( 'lib/cli/format', () => ( {
+jest.mock( '../../src/lib/cli/format', () => ( {
 	formatData: jest.fn(),
 } ) );
 
-jest.mock( 'lib/envvar/api', () => ( {
+jest.mock( '../../src/lib/envvar/api', () => ( {
 	listEnvVars: jest.fn(),
 } ) );
 
-jest.mock( 'lib/envvar/logging', () => ( {
+jest.mock( '../../src/lib/envvar/logging', () => ( {
 	debug: jest.fn(),
 	getEnvContext: () => 'test',
 } ) );
 
-jest.mock( 'lib/tracker', () => ( {
+jest.mock( '../../src/lib/tracker', () => ( {
 	trackEvent: jest.fn(),
 } ) );
 
@@ -67,7 +65,9 @@ describe( 'listEnvVarsCommand', () => {
 		},
 		format: 'csv',
 	};
-	const eventPayload = expect.objectContaining( { command: 'vip @mysite.develop config envvar list' } );
+	const eventPayload = expect.objectContaining( {
+		command: 'vip @mysite.develop config envvar list',
+	} );
 	const executeEvent = [ 'envvar_list_command_execute', eventPayload ];
 	const successEvent = [ 'envvar_list_command_success', eventPayload ];
 
@@ -83,7 +83,6 @@ describe( 'listEnvVarsCommand', () => {
 
 		expect( formatData ).toHaveBeenCalledWith( [ { name: 'hello' } ], 'csv' );
 		expect( trackEvent.mock.calls ).toEqual( [ executeEvent, successEvent ] );
-		expect( rollbar.error ).not.toHaveBeenCalled();
 	} );
 
 	it( 'exits with message when there are no env vars', async () => {
@@ -91,11 +90,12 @@ describe( 'listEnvVarsCommand', () => {
 
 		await expect( () => listEnvVarsCommand( args, opts ) ).rejects.toEqual( 'EXIT' );
 
-		expect( console.log ).toHaveBeenCalledWith( expect.stringContaining( 'There are no environment variables' ) );
+		expect( console.log ).toHaveBeenCalledWith(
+			expect.stringContaining( 'There are no environment variables' )
+		);
 		expect( process.exit ).toHaveBeenCalled();
 		expect( formatData ).not.toHaveBeenCalled();
 		expect( trackEvent.mock.calls ).toEqual( [ executeEvent, successEvent ] );
-		expect( rollbar.error ).not.toHaveBeenCalled();
 	} );
 
 	it( 'rethrows error thrown from listEnvVars', async () => {
@@ -107,6 +107,5 @@ describe( 'listEnvVarsCommand', () => {
 
 		expect( formatData ).not.toHaveBeenCalled();
 		expect( trackEvent.mock.calls ).toEqual( [ executeEvent, queryErrorEvent ] );
-		expect( rollbar.error ).toHaveBeenCalledWith( thrownError );
 	} );
 } );

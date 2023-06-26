@@ -27,7 +27,13 @@ import {
 	type EnvForImport,
 } from '../lib/site-import/db-file-import';
 import { importSqlCheckStatus } from '../lib/site-import/status';
-import { checkFileAccess, getFileSize, getFileMeta, isFile, uploadImportSqlFileToS3 } from '../lib/client-file-uploader';
+import {
+	checkFileAccess,
+	getFileSize,
+	getFileMeta,
+	isFile,
+	uploadImportSqlFileToS3,
+} from '../lib/client-file-uploader';
 import { trackEventWithEnv } from '../lib/tracker';
 import { staticSqlValidations, getTableNames } from '../lib/validations/sql';
 import { siteTypeValidations } from '../lib/validations/site-type';
@@ -38,7 +44,6 @@ import { fileLineValidations } from '../lib/validations/line-by-line';
 import { formatEnvironment, formatSearchReplaceValues, getGlyphForStatus } from '../lib/cli/format';
 import { ProgressTracker } from '../lib/cli/progress';
 import { isMultiSiteInSiteMeta } from '../lib/validations/is-multi-site';
-import { rollbar } from '../lib/rollbar';
 
 export type WPSiteListType = {
 	id: string,
@@ -181,20 +186,23 @@ const examples = [
 	},
 	// `search-replace` flag
 	{
-		usage: 'vip import sql @mysite.develop file.sql --search-replace="https://from.example.com,https://to.example.com"',
+		usage:
+			'vip import sql @mysite.develop file.sql --search-replace="https://from.example.com,https://to.example.com"',
 		description:
 			'Perform a Search and Replace, then import the replaced file to your site.\n' +
 			'       * Ensure there are no spaces between your search-replace parameters',
 	},
 	// `search-replace` flag
 	{
-		usage: 'vip import sql @mysite.develop file.sql --search-replace="https://from.example.com,https://to.example.com" --search-replace="example.com/from,example.com/to"',
+		usage:
+			'vip import sql @mysite.develop file.sql --search-replace="https://from.example.com,https://to.example.com" --search-replace="example.com/from,example.com/to"',
 		description:
 			'Perform multiple search and replace tasks, then import the updated file to your site.',
 	},
 	// `in-place` flag
 	{
-		usage: 'vip import sql @mysite.develop file.sql --search-replace="https://from.example.com,https://to.example.com" --in-place',
+		usage:
+			'vip import sql @mysite.develop file.sql --search-replace="https://from.example.com,https://to.example.com" --in-place',
 		description:
 			'Search and Replace on the input `file.sql`, then import the updated file to your site',
 	},
@@ -219,7 +227,7 @@ const promptToContinue = async ( {
 	formattedEnvironment,
 	track,
 	domain,
-} ): Promise<void> => {
+} ): Promise< void > => {
 	console.log();
 	const promptToMatch = domain.toUpperCase();
 	const promptResponse = await prompt( {
@@ -252,7 +260,7 @@ export async function validateAndGetTableNames( {
 	envId,
 	fileNameToUpload,
 	searchReplace,
-}: validateAndGetTableNamesInputType ): Promise<Array<string>> {
+}: validateAndGetTableNamesInputType ): Promise< Array< string > > {
 	const validations = [ staticSqlValidations, siteTypeValidations ];
 	if ( skipValidate ) {
 		console.log( 'Skipping SQL file validation.' );
@@ -263,7 +271,9 @@ export async function validateAndGetTableNames( {
 	} catch ( validateErr ) {
 		console.log( '' );
 		exit.withError( `${ validateErr.message }\n
-If you are confident the file does not contain unsupported statements, you can retry the command with the ${ chalk.yellow( '--skip-validate' ) } option.
+If you are confident the file does not contain unsupported statements, you can retry the command with the ${ chalk.yellow(
+			'--skip-validate'
+		) } option.
 ` );
 	}
 	// this can only be called after static validation of the SQL file
@@ -275,7 +285,9 @@ function validateFilename( filename ) {
 
 	// Exits if filename contains anything outside a-z A-Z - _ .
 	if ( ! re.test( filename ) ) {
-		exit.withError( 'Error: The characters used in the name of a file for import are limited to [0-9,a-z,A-Z,-,_,.]' );
+		exit.withError(
+			'Error: The characters used in the name of a file for import are limited to [0-9,a-z,A-Z,-,_,.]'
+		);
 	}
 }
 
@@ -308,7 +320,9 @@ const displayPlaybook = ( {
 	if ( isMultiSite ) {
 		// eslint-disable-next-line no-multi-spaces
 		console.log( `  multisite: ${ isMultiSite.toString() }` );
-		const selectedEnvironmentObj = app?.environments?.find( env => unformattedEnvironment === env.type );
+		const selectedEnvironmentObj = app?.environments?.find(
+			env => unformattedEnvironment === env.type
+		);
 		siteArray = selectedEnvironmentObj?.wpSites?.nodes;
 	}
 
@@ -338,7 +352,8 @@ const displayPlaybook = ( {
 				if ( wpSite.id === 1 ) {
 					siteRegex = /^wp_[a-z]+/i;
 				} else {
-					siteRegex = new RegExp( `^wp_${ wpSite.id }_[a-z]+`, 'i' );
+					// eslint-disable-next-line security/detect-non-literal-regexp
+					siteRegex = new RegExp( `^wp_${ parseInt( wpSite.id, 10 ) }_[a-z]+`, 'i' );
 				}
 				const tableNamesInGroup = tableNames.filter( name => siteRegex.test( name ) );
 				return {
@@ -369,7 +384,7 @@ const displayPlaybook = ( {
 	}
 };
 
-command( {
+void command( {
 	appContext: true,
 	appQuery,
 	envContext: true,
@@ -381,7 +396,10 @@ command( {
 		'skip-validate',
 		'Do not perform pre-upload file validation. If unsupported entries are present, the import is likely to fail'
 	)
-	.option( 'search-replace', 'Search for a given URL in the SQL file and replace it with another. The format for the value is `<from-url>,<to-url>` (e.g. --search-replace="https://from.com,https://to.com"' )
+	.option(
+		'search-replace',
+		'Search for a given URL in the SQL file and replace it with another. The format for the value is `<from-url>,<to-url>` (e.g. --search-replace="https://from.com,https://to.com"'
+	)
 	.option( 'in-place', 'Search and Replace explicitly on the given input file' )
 	.option(
 		'output',
@@ -487,8 +505,6 @@ Processing the SQL import for your environment...
 			progressTracker.stopPrinting();
 			progressTracker.print( { clearAfter: true } );
 
-			rollbar.error( failureError );
-
 			exit.withError( failureError );
 		};
 
@@ -576,7 +592,7 @@ Processing the SQL import for your environment...
 		} catch ( uploadError ) {
 			await track( 'import_sql_command_error', {
 				error_type: 'upload_failed',
-				upload_error: uploadError,
+				upload_error: uploadError.message,
 			} );
 
 			progressTracker.stepFailed( 'upload' );

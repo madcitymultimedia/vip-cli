@@ -5,7 +5,7 @@
 /**
  * Internal dependencies
  */
-import { requoteArgs } from '../../../src/lib/cli/format';
+import { formatBytes, requoteArgs } from '../../../src/lib/cli/format';
 
 describe( 'utils/cli/format', () => {
 	describe( 'requoteArgs', () => {
@@ -27,8 +27,12 @@ describe( 'utils/cli/format', () => {
 				expected: [ '{ "json"     :    "json with spaces outside strings"     }' ],
 			},
 			{
-				input: [ '   { "json"     :    "json with spaces outside strings and outside the object"     }   ' ],
-				expected: [ '   { "json"     :    "json with spaces outside strings and outside the object"     }   ' ],
+				input: [
+					'   { "json"     :    "json with spaces outside strings and outside the object"     }   ',
+				],
+				expected: [
+					'   { "json"     :    "json with spaces outside strings and outside the object"     }   ',
+				],
 			},
 			{
 				input: [ '{ "json" : "spaces-outside-strings-only"      }' ],
@@ -41,6 +45,15 @@ describe( 'utils/cli/format', () => {
 		] )( 'should requote args when needed - %o', ( { input, expected } ) => {
 			const result = requoteArgs( input );
 			expect( result ).toStrictEqual( expected );
+		} );
+	} );
+
+	describe( 'formatBytes', () => {
+		it( 'should format bytes', () => {
+			expect( formatBytes( 1000 ) ).toStrictEqual( '1000 bytes' );
+			expect( formatBytes( 1024 ) ).toStrictEqual( '1 KB' );
+			expect( formatBytes( 1000000 ) ).toStrictEqual( '976.56 KB' );
+			expect( formatBytes( 10004008 ) ).toStrictEqual( '9.54 MB' );
 		} );
 	} );
 } );
