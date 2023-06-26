@@ -75,12 +75,7 @@ describe( 'vip dev-env start', () => {
 		await createAndStartEnvironment( cliTest, slug, env );
 
 		const containersAfterStart = await getContainersForProject( docker, slug );
-		const expectedServices = [
-			'php',
-			'database',
-			'memcached',
-			'nginx',
-		];
+		const expectedServices = [ 'php', 'database', 'memcached', 'nginx' ];
 
 		expectedServices.forEach( service =>
 			expect(

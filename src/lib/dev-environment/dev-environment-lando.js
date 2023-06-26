@@ -98,15 +98,15 @@ async function getLandoConfig() {
 
 const appMap: Map< string, App > = new Map();
 
-async function getApplication( lando: Lando, instancePath: string ): Promise<App> {
+async function getApplication( lando: Lando, instancePath: string ): Promise< App > {
 	const app = lando.getApp( instancePath );
 
-	app.events.on('post-init', 1, () => {
+	app.events.on( 'post-init', 1, () => {
 		const initOnly = [];
 		Object.keys( app.config.services ).forEach( serviceName => {
-			if ( app.config.services[serviceName].initOnly ) {
+			if ( app.config.services[ serviceName ].initOnly ) {
 				initOnly.push( serviceName );
-				app.config.services[serviceName].scanner = false;
+				app.config.services[ serviceName ].scanner = false;
 			}
 		} );
 
